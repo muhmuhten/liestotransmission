@@ -1,0 +1,17 @@
+## liestotransmission
+
+Two monkeypatches to the internal workings of transmission-daemon.
+
+- report success on failure with EINVAL when setting TOS
+- bind the RPC server to unix socket "rpc" instead of whatever the options say
+
+### this sounds horrifying, why this
+
+Compared to writing parsing code into libevent, upstreaming the changes, and
+then getting transmission to import those changes and also fix their validation
+checks so that it'll do any good, this is way easier.
+
+Mangling data as it passes through well-defined interfaces with a reasonable
+expectation of ABI compatibility is somewhat less likely to break than somewhat
+intrusive source patches, and maintains a cleaner separation of weird special
+cases that it'd be tedious and hard to design a generalization for.
