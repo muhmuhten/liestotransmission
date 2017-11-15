@@ -20,7 +20,7 @@ int setsockopt(int s, int level, int name, const void *val, socklen_t len) {
 
 static const struct sockaddr_un sa_un_in = {
 	.sun_family = AF_UNIX,
-	.sun_path = "in",
+	.sun_path = "rpc",
 };
 int evhttp_accept_socket(void *http, int fd);
 #define FAIL(...) do { warn("(lies)" __VA_ARGS__); goto fail; } while (0)
@@ -29,6 +29,8 @@ int evhttp_bind_socket(void *http, const char *address, uint16_t port) {
 	int fd = socket(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK, 0);
 	if (fd == -1)
 		FAIL("socket");
+	/* don't particularly care if this fails */
+	unlink("rpc");
 	if (bind(fd, (struct sockaddr *)&sa_un_in, sizeof sa_un_in) == -1)
 		FAIL("bind");
 	if (listen(fd, 128) == -1)
