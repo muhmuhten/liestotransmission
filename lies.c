@@ -1,5 +1,4 @@
 #include <dlfcn.h>
-#include <err.h>
 #include <errno.h>
 #include <netinet/in.h>
 
