@@ -3,7 +3,7 @@
 Two monkeypatches to the internal workings of transmission-daemon.
 
 - report success on failure with EINVAL when setting TOS
-- bind the RPC server to unix socket "rpc" instead of whatever the options say
+- listen for connections on the socket at fd 0 instead of binding a new one
 
 ### this sounds horrifying, why this
 
