@@ -11,7 +11,68 @@ Compared to writing parsing code into libevent, upstreaming the changes, and
 then getting transmission to import those changes and also fix their validation
 checks so that it'll do any good, this is way easier.
 
-Mangling data as it passes through well-defined interfaces with a reasonable
+Mangling data as it passes through documented interfaces with a reasonable
 expectation of ABI compatibility is somewhat less likely to break than somewhat
 intrusive source patches, and maintains a cleaner separation of weird special
 cases that it'd be tedious and hard to design a generalization for.
+
+Also, I mostly still get to use my OS package manager this way, instead of
+having to build transmission myself every version.
+
+### so, why this
+
+I wanted better access control than passwords, especially if it's going to be
+providing write access to the user's files to any other user on the system, so
+I wanted to listen to RPC on a unix domain socket instead of loopback.
+
+It turns out that libevent can accept connections on a unix stream socket just
+fine, but doesn't know how to bind one, and transmission can only be configured
+to speak RPC over ipv4, which is kind of dumb.
+
+To work around this, we bind hijack the call to libevent to bind the socket and
+substitute our own, bound in advance and placed in fd 0. We can even still just
+bind to a TCP socket, but we could also just bind a unix stream socket instead
+and it'll work seamlessly.
+
+### how
+
+The shared object has to be loaded before libevent and the libc; LD_PRELOAD is
+probably the least intrustive way.
+
+Then transmission-daemon should be run with a bound and listening stream socket
+in nonblocking mode on fd 0. Something like inetd or s6-ipcserver-socketbinder
+should be able to handle this, but otherwise a fairly simple C program should
+do the trick, too:
+
+```c
+#include <err.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
+int main(int argc, char **argv) {
+	struct sockaddr_un sa = {.sun_family = AF_UNIX};
+
+	if (argc < 2)
+		errx(2, "usage: socketbinder path command...");
+
+	close(0);
+	if (socket(PF_UNIX, SOCK_STREAM|SOCK_NONBLOCK, 0) != 0)
+		err(1, "socket");
+
+	*stpncpy(sa.sun_path, argv[1], sizeof sa.sun_path) = 0;
+	unlink(sa.sun_path);
+	if (bind(0, (struct sockaddr *)&sa, sizeof sa) == -1)
+		err(1, "bind");
+
+	if (listen(0, SOMAXCONN) == -1)
+		err(1, "listen");
+
+	execvp(argv[2], argv+2);
+	err(1, "exec");
+}
+```
+
+(This is something like a four-liner in perl, except that you'd have to
+hard-code the value of SOMAXCONN.)
