@@ -5,7 +5,6 @@
 
 int setsockopt(int s, int level, int name, const void *val, socklen_t len) {
 	int (*super)() = (int (*)())dlsym(RTLD_NEXT, "setsockopt");
-	errno = 0;
 	int res = super(s, level, name, val, len);
 
 	/* silence complaints from trying to set TOS on dead socket */
